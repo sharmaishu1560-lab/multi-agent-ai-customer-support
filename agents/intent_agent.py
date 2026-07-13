@@ -1,9 +1,5 @@
-from openai import OpenAI
+from services.llm_service import client
 
-client = OpenAI(
-    base_url="http://127.0.0.1:1234/v1",
-    api_key="lm-studio"
-)
 
 def detect_intent(user_message):
 
@@ -14,17 +10,50 @@ def detect_intent(user_message):
             {
                 "role": "system",
                 "content": """
-You are an intent classifier.
+You are an intent classification AI.
 
-Choose ONLY ONE intent from this list:
+Classify the user's message into EXACTLY ONE of these intents:
 
 - order
 - refund
 - payment
 - technical_support
+- faq
+- escalation
 - general
 
-Return only the intent name.
+FAQ includes:
+- warranty
+- return policy
+- refund policy
+- shipping policy
+- business hours
+- contact information
+- company information
+
+Escalation includes:
+- talk to a human
+- speak to an agent
+- customer representative
+- manager
+- complaint
+- not satisfied
+- unresolved issue
+
+IMPORTANT:
+Return ONLY one word.
+
+Valid outputs are:
+
+order
+refund
+payment
+technical_support
+faq
+escalation
+general
+
+Do not return anything else.
 """
             },
             {
@@ -34,4 +63,8 @@ Return only the intent name.
         ]
     )
 
-    return response.choices[0].message.content.strip()
+    intent = response.choices[0].message.content.strip().lower()
+
+    print("RAW MODEL OUTPUT:", intent)
+
+    return intent

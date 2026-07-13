@@ -1,0 +1,13 @@
+Company Name: ABC Electronics
+
+Business Hours:
+Monday-Friday: 9 AM to 6 PM
+
+Customer Support:
+support@abcelectronics.com
+
+Phone:
++1-800-123-4567
+
+Warranty:
+All products include a one-year warranty.

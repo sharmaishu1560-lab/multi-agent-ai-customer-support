@@ -1,35 +1,31 @@
-from openai import OpenAI
+from services.llm_service import client
 
-client = OpenAI(
-    base_url="http://127.0.0.1:1234/v1",
-    api_key="lm-studio"
-)
-
-def handle_order_query(user_message):
-
+def handle_order_query(history):
+    print("Conversation History:")
+    print(history)
     response = client.chat.completions.create(
         model="qwen2.5-coder-1.5b-instruct",
         temperature=0.3,
-        messages=[
-            {
-                "role": "system",
-                "content": """
+    messages=[
+    {
+        "role": "system",
+        "content": """
 You are an Order Support Agent.
 
-Your job is to help customers with:
-- Order status
-- Shipping
-- Delivery
-- Tracking
+IMPORTANT:
+Read the entire conversation history before answering.
 
-If you don't know an order number, politely ask for it.
+If the customer has already provided an order number anywhere in the conversation, do NOT ask for it again.
+
+Use the conversation history to answer follow-up questions naturally.
+
+Only ask for an order number if it has never been mentioned.
+
+Never ignore previous messages.
+
+Always answer politely and professionally.
 """
-            },
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ]
-    )
+    }
+] + history)
 
     return response.choices[0].message.content
