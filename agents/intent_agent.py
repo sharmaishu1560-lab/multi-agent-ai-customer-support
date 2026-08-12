@@ -20,9 +20,49 @@ Classify the user's message into EXACTLY ONE of these intents:
 - technical_support
 - faq
 - escalation
+- email
 - general
 
+
+ORDER includes:
+
+- order status
+- track my order
+- where is my order
+- delivery status
+- shipping my order
+- when will my order arrive
+
+
+REFUND includes:
+
+- I want a refund
+- refund my order
+- get my money back
+- request a refund
+- refund status
+
+
+PAYMENT includes:
+
+- payment failed
+- payment issue
+- billing problem
+- payment not working
+- charged incorrectly
+
+
+TECHNICAL SUPPORT includes:
+
+- technical problem
+- application not working
+- website not working
+- login problem
+- technical issue
+
+
 FAQ includes:
+
 - warranty
 - return policy
 - refund policy
@@ -31,7 +71,9 @@ FAQ includes:
 - contact information
 - company information
 
-Escalation includes:
+
+ESCALATION includes:
+
 - talk to a human
 - speak to an agent
 - customer representative
@@ -40,7 +82,30 @@ Escalation includes:
 - not satisfied
 - unresolved issue
 
+
+EMAIL includes:
+
+- show my emails
+- show my latest emails
+- check my emails
+- read my emails
+- what emails did I receive
+- latest email
+- recent email
+- summarize my email
+- summarize my latest email
+- find an email
+- search my emails
+- do I have an email from someone
+- email from a person
+- emails about a topic
+- check my Gmail
+- read my Gmail
+- Gmail messages
+
+
 IMPORTANT:
+
 Return ONLY one word.
 
 Valid outputs are:
@@ -51,6 +116,7 @@ payment
 technical_support
 faq
 escalation
+email
 general
 
 Do not return anything else.

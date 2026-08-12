@@ -1,6 +1,11 @@
 venv/
 __pycache__/
 *.pyc
+
 .env
+
 vectorstore/
 chat_logs.json
+
+credentials.json
+token.json
