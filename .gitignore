@@ -1,11 +1,12 @@
+.env
 venv/
 __pycache__/
 *.pyc
+*.mp3
+static/audio/
+static/generated/
 
-.env
-
-vectorstore/
 chat_logs.json
-
 credentials.json
 token.json
+vectorstore/
