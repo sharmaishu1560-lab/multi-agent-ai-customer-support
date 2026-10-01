@@ -1,18 +1,26 @@
-from services.llm_service import client
+from openai import OpenAI
+import time
+
+client = OpenAI(
+    base_url="http://127.0.0.1:1234/v1",
+    api_key="lm-studio"
+)
 
 MODEL_NAME = "qwen2.5-coder-1.5b-instruct"
 
+user_message = "A payment was deducted but my order failed. What should I do?"
 
-def handle_payment_query(user_message):
+start = time.perf_counter()
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        temperature=0.3,
-        max_tokens=60,
-        messages=[
-            {
-                "role": "system",
-                "content": """
+response = client.chat.completions.create(
+    model=MODEL_NAME,
+    temperature=0.3,
+    max_tokens=100,
+    stream=False,
+    messages=[
+        {
+            "role": "system",
+            "content": """
 You are the Payment Support Agent.
 
 Start every response with:
@@ -47,21 +55,21 @@ Suggest checking the bank's decline message or contacting the bank.
 
 Ask only for information relevant to the customer's issue.
 Keep the response short.
-Keep the response under 2 short paragraphs.
-Prefer 2-3 sentences.
-Do not repeat the customer's problem.
 """
-            },
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ]
-    )
+        },
+        {
+            "role": "user",
+            "content": user_message
+        }
+    ]
+)
 
-    answer = response.choices[0].message.content
+answer = response.choices[0].message.content
 
-    if answer:
-        return answer.strip()
+end = time.perf_counter()
 
-    return "[PAYMENT AGENT] Sorry, I couldn't generate a response."
+print(answer)
+
+print("\n----- TIMING -----")
+print(f"Total response time: {end - start:.2f} seconds")
+print(f"Characters generated: {len(answer)}")

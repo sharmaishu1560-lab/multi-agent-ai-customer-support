@@ -1,5 +1,10 @@
+import time
+
 from services.llm_service import client
 from services.gmail_service import get_emails, search_emails
+
+
+MODEL_NAME = "qwen2.5-coder-1.5b-instruct"
 
 
 # ==================================================
@@ -10,77 +15,93 @@ def create_gmail_query(user_message):
 
     message = user_message.lower().strip()
 
-    # ------------------------------------------
-    # Search by sender
-    # ------------------------------------------
-
     if "email from " in message:
-
-        person = message.split(
-            "email from ",
-            1
-        )[1].strip()
-
+        person = message.split("email from ", 1)[1].strip()
         return f"from:{person}"
 
     if "emails from " in message:
-
-        person = message.split(
-            "emails from ",
-            1
-        )[1].strip()
-
+        person = message.split("emails from ", 1)[1].strip()
         return f"from:{person}"
 
-    # ------------------------------------------
-    # Search by subject
-    # ------------------------------------------
-
     if "subject:" in message:
-
-        subject = message.split(
-            "subject:",
-            1
-        )[1].strip()
-
+        subject = message.split("subject:", 1)[1].strip()
         return f"subject:{subject}"
 
-    # ------------------------------------------
-    # Search by topic
-    # ------------------------------------------
-
     if "about " in message:
-
-        topic = message.split(
-            "about ",
-            1
-        )[1].strip()
-
-        return topic
+        return message.split("about ", 1)[1].strip()
 
     if "regarding " in message:
-
-        topic = message.split(
-            "regarding ",
-            1
-        )[1].strip()
-
-        return topic
+        return message.split("regarding ", 1)[1].strip()
 
     if "related to " in message:
-
-        topic = message.split(
-            "related to ",
-            1
-        )[1].strip()
-
-        return topic
-
-    # ------------------------------------------
-    # No Gmail search
-    # ------------------------------------------
+        return message.split("related to ", 1)[1].strip()
 
     return None
+
+
+# ==================================================
+# CHECK EMAIL LIST REQUEST
+# ==================================================
+
+def is_listing_request(user_message):
+
+    message = user_message.lower().strip()
+
+    has_email = (
+        "email" in message
+        or "emails" in message
+    )
+
+    has_show = (
+        "show" in message
+        or "list" in message
+        or "display" in message
+    )
+
+    has_latest = (
+        "latest" in message
+        or "recent" in message
+        or "newest" in message
+    )
+
+    return has_email and has_show and has_latest
+
+
+# ==================================================
+# FORMAT EMAIL LIST WITHOUT LLM
+# ==================================================
+
+def format_email_list(emails):
+
+    result = (
+        "[EMAIL AGENT]\n"
+        "Here are your latest emails:\n\n"
+    )
+
+    for index, email in enumerate(emails, start=1):
+
+        sender = email.get(
+            "sender",
+            "Unknown"
+        )
+
+        subject = email.get(
+            "subject",
+            "No subject"
+        )
+
+        date = email.get(
+            "date",
+            ""
+        )
+
+        result += (
+            f"{index}. {subject}\n"
+            f"   From: {sender}\n"
+            f"   Date: {date}\n\n"
+        )
+
+    return result.strip()
 
 
 # ==================================================
@@ -89,10 +110,12 @@ def create_gmail_query(user_message):
 
 def handle_email_query(user_message):
 
+    total_start = time.perf_counter()
+
     try:
 
         # ------------------------------------------
-        # Create Gmail search query
+        # CREATE GMAIL QUERY
         # ------------------------------------------
 
         gmail_query = create_gmail_query(
@@ -100,8 +123,10 @@ def handle_email_query(user_message):
         )
 
         # ------------------------------------------
-        # If there is a specific search
+        # GET EMAILS
         # ------------------------------------------
+
+        gmail_start = time.perf_counter()
 
         if gmail_query:
 
@@ -114,10 +139,6 @@ def handle_email_query(user_message):
                 max_results=5
             )
 
-        # ------------------------------------------
-        # Otherwise get latest emails
-        # ------------------------------------------
-
         else:
 
             print(
@@ -128,13 +149,19 @@ def handle_email_query(user_message):
                 max_results=5
             )
 
+        print(
+            f"⏱️ Gmail Retrieval: "
+            f"{time.perf_counter() - gmail_start:.2f} seconds"
+        )
+
         # ------------------------------------------
-        # Check emails
+        # NO EMAILS
         # ------------------------------------------
 
         if not emails:
 
             return (
+                "[EMAIL AGENT] "
                 "I couldn't find any emails."
             )
 
@@ -144,8 +171,45 @@ def handle_email_query(user_message):
         )
 
         # ------------------------------------------
-        # Build small email context
+        # DEBUG
         # ------------------------------------------
+
+        print(
+            "USER MESSAGE:",
+            repr(user_message)
+        )
+
+        print(
+            "IS LISTING REQUEST:",
+            is_listing_request(user_message)
+        )
+
+        # ------------------------------------------
+        # FAST LISTING PATH
+        # ------------------------------------------
+
+        if is_listing_request(user_message):
+
+            print(
+                "Email listing request - skipping LLM."
+            )
+
+            answer = format_email_list(
+                emails
+            )
+
+            print(
+                f"⏱️ Email Agent Internal Time: "
+                f"{time.perf_counter() - total_start:.2f} seconds"
+            )
+
+            return answer
+
+        # ------------------------------------------
+        # BUILD VERY SMALL LLM CONTEXT
+        # ------------------------------------------
+
+        context_start = time.perf_counter()
 
         email_context = ""
 
@@ -174,62 +238,53 @@ def handle_email_query(user_message):
                 ""
             )
 
-            # Keep context small
-            message = message[:500]
+            # Only a small preview
+            message = message[:100]
 
-            email_context += f"""
-EMAIL {index}
+            email_context += (
+                f"{index}. "
+                f"{sender} | "
+                f"{subject} | "
+                f"{date} | "
+                f"{message}\n"
+            )
 
-From: {sender}
-
-Subject: {subject}
-
-Date: {date}
-
-Content:
-{message}
-
---------------------------------
-"""
+        print(
+            f"⏱️ Email Context Creation: "
+            f"{time.perf_counter() - context_start:.2f} seconds"
+        )
 
         # ------------------------------------------
-        # LLM prompt
+        # SHORT LLM PROMPT
         # ------------------------------------------
 
         prompt = f"""
-You are a helpful email assistant.
+You are an email assistant.
 
-User request:
+Start with [EMAIL AGENT].
+
+User:
 {user_message}
 
-Here are the emails retrieved from Gmail:
-
+Emails:
 {email_context}
 
-Answer the user's request using ONLY
-the information contained in these emails.
-
-If the user asks for a summary:
-- Summarize the important emails.
-- Mention the sender and subject when useful.
-- Keep the response concise.
-
-If the user asks about the latest email:
-- Use the first email in the list.
-
-Never invent information.
+Summarize the important information.
+Use only the emails.
+Do not invent facts.
+Keep the answer very short.
 """
 
         # ------------------------------------------
-        # Call LLM
+        # LLM
         # ------------------------------------------
 
+        llm_start = time.perf_counter()
+
         response = client.chat.completions.create(
-
-            model="qwen2.5-coder-1.5b-instruct",
-
+            model=MODEL_NAME,
             temperature=0.2,
-
+            max_tokens=40,
             messages=[
                 {
                     "role": "user",
@@ -238,19 +293,30 @@ Never invent information.
             ]
         )
 
-        answer = (
-            response
-            .choices[0]
-            .message
-            .content
-            .strip()
+        print(
+            f"⏱️ Email LLM: "
+            f"{time.perf_counter() - llm_start:.2f} seconds"
         )
 
-        return answer
+        # ------------------------------------------
+        # RESPONSE
+        # ------------------------------------------
 
-    # ------------------------------------------
-    # Error handling
-    # ------------------------------------------
+        answer = response.choices[0].message.content
+
+        if answer:
+
+            print(
+                f"⏱️ Email Agent Internal Time: "
+                f"{time.perf_counter() - total_start:.2f} seconds"
+            )
+
+            return answer.strip()
+
+        return (
+            "[EMAIL AGENT] "
+            "Sorry, I couldn't generate a response."
+        )
 
     except Exception as e:
 
@@ -259,7 +325,13 @@ Never invent information.
             e
         )
 
+        print(
+            f"⏱️ Email Agent Failed Time: "
+            f"{time.perf_counter() - total_start:.2f} seconds"
+        )
+
         return (
+            "[EMAIL AGENT] "
             "I was able to access your emails, "
-            "but I couldn't generate the summary."
+            "but I couldn't generate the response."
         )

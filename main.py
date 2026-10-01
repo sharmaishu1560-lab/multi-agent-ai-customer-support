@@ -1,51 +1,126 @@
+import os
+import time
+
 from fastapi import FastAPI
-from pydantic import BaseModel
-
-from services.llm_service import client
-from services.memory_service import save_message, get_history
-from services.logging_service import log_chat
-
-from agents.intent_agent import detect_intent
-from agents.order_agent import handle_order_query
-from agents.refund_agent import handle_refund_query
-from agents.payment_agent import handle_payment_query
-from agents.technical_support_agent import handle_technical_support_query
-from agents.faq_agent import handle_faq_query
-from agents.escalation_agent import handle_escalation_query
-from agents.email_agent import handle_email_query
-
+from fastapi.staticfiles import StaticFiles
 
 # -----------------------------------
-# Create FastAPI Application
+# Initialize FastAPI
 # -----------------------------------
 
 app = FastAPI(
-    title="Multi-Agent AI Customer Support Assistant",
-    description="AI-powered customer support system using multiple specialized agents.",
-    version="1.0.0"
+    title="Multi-Agent AI Customer Support Assistant"
 )
+
+
+# -----------------------------------
+# Create Audio Directory
+# -----------------------------------
+
+AUDIO_DIRECTORY = "static/audio"
+
+os.makedirs(
+    AUDIO_DIRECTORY,
+    exist_ok=True
+)
+
+
+# -----------------------------------
+# Mount Frontend
+# -----------------------------------
+
+app.mount(
+    "/static",
+    StaticFiles(directory="static"),
+    name="static"
+)
+
+
+# -----------------------------------
+# Mount Audio Files
+# -----------------------------------
+
+app.mount(
+    "/audio",
+    StaticFiles(directory=AUDIO_DIRECTORY),
+    name="audio"
+)
+
+
+# -----------------------------------
+# Import Services
+# -----------------------------------
+
+from services.llm_service import client
+
+from services.memory_service import (
+    save_message,
+    get_history
+)
+
+from services.logging_service import log_chat
+
+
+# -----------------------------------
+# Import Voice Service
+# -----------------------------------
+
+from services.voice_service import text_to_speech
+
+
+# -----------------------------------
+# Import Agents
+# -----------------------------------
+
+from agents.intent_agent import detect_intent
+
+from agents.order_agent import handle_order_query
+
+from agents.refund_agent import handle_refund_query
+
+from agents.payment_agent import handle_payment_query
+
+from agents.technical_support_agent import (
+    handle_technical_support_query
+)
+
+from agents.faq_agent import handle_faq_query
+
+from agents.escalation_agent import (
+    handle_escalation_query
+)
+
+from agents.email_agent import handle_email_query
 
 
 # -----------------------------------
 # Request Model
 # -----------------------------------
 
+from pydantic import BaseModel
+
+
 class ChatRequest(BaseModel):
 
     session_id: str
+
     message: str
+
+    # Voice is OFF by default.
+    voice_enabled: bool = False
 
 
 # -----------------------------------
-# Home Endpoint
+# Root Endpoint
 # -----------------------------------
 
 @app.get("/")
 def home():
 
     return {
-        "message": "Multi-Agent AI Customer Support Assistant",
-        "status": "running"
+        "message": (
+            "Multi-Agent AI Customer Support Assistant"
+        )
     }
 
 
@@ -56,11 +131,17 @@ def home():
 @app.post("/chat")
 def chat(request: ChatRequest):
 
+    # Start total timer
+
+    total_start = time.perf_counter()
+
     try:
 
         # -----------------------------------
         # Save User Message
         # -----------------------------------
+
+        step_start = time.perf_counter()
 
         save_message(
             request.session_id,
@@ -68,13 +149,25 @@ def chat(request: ChatRequest):
             request.message
         )
 
+        print(
+            f"⏱️ Save User Message: "
+            f"{time.perf_counter() - step_start:.2f} seconds"
+        )
+
 
         # -----------------------------------
         # Get Conversation History
         # -----------------------------------
 
+        step_start = time.perf_counter()
+
         history = get_history(
             request.session_id
+        )
+
+        print(
+            f"⏱️ Get History: "
+            f"{time.perf_counter() - step_start:.2f} seconds"
         )
 
 
@@ -82,8 +175,15 @@ def chat(request: ChatRequest):
         # Detect Intent
         # -----------------------------------
 
+        intent_start = time.perf_counter()
+
         intent = detect_intent(
             request.message
+        )
+
+        print(
+            f"⏱️ Intent Detection: "
+            f"{time.perf_counter() - intent_start:.2f} seconds"
         )
 
 
@@ -94,47 +194,83 @@ def chat(request: ChatRequest):
         intent_mapping = {
 
             # FAQ
+
             "warranty": "faq",
+
             "shipping": "faq",
+
             "shipping policy": "faq",
+
             "refund policy": "faq",
+
             "business hours": "faq",
+
             "contact": "faq",
+
             "company information": "faq",
 
+
             # Order
+
             "order_status": "order",
+
             "tracking": "order",
+
             "delivery": "order",
+
             "order_cancellation": "order",
+
             "cancel_order": "order",
 
+
             # Refund
+
             "refund": "refund",
+
             "refund_request": "refund",
 
+
             # Payment
+
             "payment_issue": "payment",
+
             "billing": "payment",
+
             "payment": "payment",
 
+
             # Technical Support
+
             "tech_support": "technical_support",
+
             "technical": "technical_support",
+
             "technical_support": "technical_support",
 
+
             # Escalation
+
             "human": "escalation",
+
             "human agent": "escalation",
+
             "agent": "escalation",
+
             "representative": "escalation",
+
             "customer support": "escalation",
+
             "manager": "escalation",
+
             "complaint": "escalation",
+
             "not satisfied": "escalation",
+
             "unresolved": "escalation",
 
+
             # Email
+
             "email": "email"
         }
 
@@ -156,6 +292,9 @@ def chat(request: ChatRequest):
         # -----------------------------------
         # Route Request
         # -----------------------------------
+
+        agent_start = time.perf_counter()
+
 
         if intent == "order":
 
@@ -222,6 +361,7 @@ def chat(request: ChatRequest):
 
                     {
                         "role": "system",
+
                         "content": (
                             "You are a helpful AI customer "
                             "support assistant."
@@ -231,12 +371,107 @@ def chat(request: ChatRequest):
                 ] + history
             )
 
-            answer = response.choices[0].message.content
+            answer = (
+                response
+                .choices[0]
+                .message
+                .content
+            )
+
+
+        print(
+            f"⏱️ Agent/LLM Processing: "
+            f"{time.perf_counter() - agent_start:.2f} seconds"
+        )
+
+
+        # -----------------------------------
+        # Voice Response
+        # -----------------------------------
+
+        audio_file = None
+
+
+        if request.voice_enabled:
+
+            print(
+                "🔊 Voice response requested."
+            )
+
+            voice_start = time.perf_counter()
+
+            try:
+
+                # Create unique filename
+
+                filename = (
+                    f"response_"
+                    f"{request.session_id}_"
+                    f"{int(time.time() * 1000)}.mp3"
+                )
+
+                audio_path = os.path.join(
+                    AUDIO_DIRECTORY,
+                    filename
+                )
+
+
+                # Generate speech
+
+                generated_file = text_to_speech(
+                    text=answer,
+                    output_file=audio_path
+                )
+
+
+                if generated_file:
+
+                    audio_file = (
+                        f"/audio/{filename}"
+                    )
+
+                    print(
+                        f"🔊 Audio file: "
+                        f"{audio_file}"
+                    )
+
+                else:
+
+                    print(
+                        "⚠️ Voice generation failed. "
+                        "Continuing with text response."
+                    )
+
+
+            except Exception as voice_error:
+
+                print(
+                    "⚠️ Voice Error:",
+                    voice_error
+                )
+
+                print(
+                    "Continuing with text response."
+                )
+
+
+            print(
+                f"⏱️ Voice Processing: "
+                f"{time.perf_counter() - voice_start:.2f} seconds"
+            )
+
+        else:
+
+            print(
+                "🔇 Voice disabled for this request."
+            )
 
 
         # -----------------------------------
         # Save Assistant Response
         # -----------------------------------
+
+        step_start = time.perf_counter()
 
         save_message(
             request.session_id,
@@ -244,10 +479,17 @@ def chat(request: ChatRequest):
             answer
         )
 
+        print(
+            f"⏱️ Save Assistant Message: "
+            f"{time.perf_counter() - step_start:.2f} seconds"
+        )
+
 
         # -----------------------------------
         # Log Conversation
         # -----------------------------------
+
+        step_start = time.perf_counter()
 
         log_chat(
             request.session_id,
@@ -256,13 +498,35 @@ def chat(request: ChatRequest):
             answer
         )
 
+        print(
+            f"⏱️ Log Conversation: "
+            f"{time.perf_counter() - step_start:.2f} seconds"
+        )
+
 
         # -----------------------------------
         # Get Updated History
         # -----------------------------------
 
+        step_start = time.perf_counter()
+
         updated_history = get_history(
             request.session_id
+        )
+
+        print(
+            f"⏱️ Get Updated History: "
+            f"{time.perf_counter() - step_start:.2f} seconds"
+        )
+
+
+        # -----------------------------------
+        # Total Time
+        # -----------------------------------
+
+        print(
+            f"⏱️ TOTAL CHAT TIME: "
+            f"{time.perf_counter() - total_start:.2f} seconds"
         )
 
 
@@ -282,6 +546,10 @@ def chat(request: ChatRequest):
 
             "ai_response": answer,
 
+            "audio_file": audio_file,
+
+            "voice_enabled": request.voice_enabled,
+
             "conversation_history": updated_history
         }
 
@@ -293,11 +561,18 @@ def chat(request: ChatRequest):
             e
         )
 
+        print(
+            f"⏱️ FAILED CHAT TIME: "
+            f"{time.perf_counter() - total_start:.2f} seconds"
+        )
+
         return {
 
             "status": "error",
 
-            "message": "Unable to process your request.",
+            "message": (
+                "Unable to process your request."
+            ),
 
             "details": str(e)
         }

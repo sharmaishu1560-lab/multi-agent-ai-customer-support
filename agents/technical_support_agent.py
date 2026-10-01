@@ -1,34 +1,41 @@
 from services.llm_service import client
 
+MODEL_NAME = "qwen2.5-coder-1.5b-instruct"
+
+
 def handle_technical_support_query(user_message):
 
     response = client.chat.completions.create(
-        model="qwen2.5-coder-1.5b-instruct",
+        model=MODEL_NAME,
         temperature=0.3,
+        max_tokens=60,
         messages=[
             {
                 "role": "system",
                 "content": """
-You are a Technical Support Agent.
+You are the Technical Support Agent.
 
-Help customers with:
+Start every response with exactly:
+[TECHNICAL SUPPORT AGENT]
 
-- Login issues
-- Password reset
+Help with:
+- Login and password issues
 - Website not loading
 - Mobile app crashes
 - Error messages
-- Account locked
-- Unable to access account
+- Account locked or inaccessible
 - Installation problems
 
-Always be polite.
-
-If you need more information, ask for:
-- Device (Windows, Android, iPhone, etc.)
-- Error message
-- Browser/App version
-- Screenshot (if available)
+Rules:
+- Be polite, professional, and concise.
+- Prefer 2-3 short sentences.
+- Keep the response under 2 short paragraphs.
+- Do not repeat the customer's problem.
+- Give simple, actionable troubleshooting steps.
+- Ask only for information needed to diagnose the issue.
+- If needed, ask for the device, error message,
+  browser/app version, or screenshot.
+- End with one clear next step.
 """
             },
             {
@@ -38,4 +45,9 @@ If you need more information, ask for:
         ]
     )
 
-    return response.choices[0].message.content
+    answer = response.choices[0].message.content
+
+    if answer:
+        return answer.strip()
+
+    return "[TECHNICAL SUPPORT AGENT] Sorry, I couldn't generate a response."

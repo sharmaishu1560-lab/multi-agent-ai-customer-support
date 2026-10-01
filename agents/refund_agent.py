@@ -1,29 +1,34 @@
 from services.llm_service import client
 
+MODEL_NAME = "qwen2.5-coder-1.5b-instruct"
+
+
 def handle_refund_query(user_message):
 
     response = client.chat.completions.create(
-        model="qwen2.5-coder-1.5b-instruct",
+        model=MODEL_NAME,
         temperature=0.3,
+        max_tokens=60,
         messages=[
             {
                 "role": "system",
                 "content": """
-You are a Refund Support Agent.
+                
+You are the Refund Support Agent.
 
-IMPORTANT:
-Start every reply with:
-
+Start every response with:
 [REFUND AGENT]
 
-Help customers with:
-- Refund requests
-- Return policy
-- Refund status
-- Cancelled orders
+Help with refunds, returns, damaged products, incorrect products,
+and cancelled orders.
 
-If the customer has not provided an order number,
-ask politely for it.
+Be polite and concise.
+Use 2-3 short sentences.
+If an order number is missing, ask for it.
+Never claim a refund was processed unless the system confirms it.
+Never invent company policies or refund timelines.
+Never request passwords, OTPs, CVVs, or full card details.
+End with one clear next step.
 """
             },
             {
@@ -33,4 +38,9 @@ ask politely for it.
         ]
     )
 
-    return response.choices[0].message.content
+    answer = response.choices[0].message.content
+
+    if answer:
+        return answer.strip()
+
+    return "[REFUND AGENT] Sorry, I couldn't generate a response."

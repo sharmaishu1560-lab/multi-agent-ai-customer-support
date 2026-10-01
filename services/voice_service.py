@@ -1,4 +1,5 @@
 import os
+import uuid
 
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
@@ -36,12 +37,6 @@ elevenlabs = ElevenLabs(
 # -----------------------------------------
 # Default voice
 # -----------------------------------------
-#
-# This is an example voice ID.
-# Later we can replace it with the voice
-# you choose from your ElevenLabs account.
-#
-# -----------------------------------------
 
 DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
 
@@ -52,25 +47,14 @@ DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
 
 def text_to_speech(
     text: str,
-    output_file: str = "response.mp3",
+    output_file: str = None,
     voice_id: str = DEFAULT_VOICE_ID
 ):
     """
     Convert text into speech using ElevenLabs.
 
-    Parameters:
-        text:
-            Text that should be spoken.
-
-        output_file:
-            Location where the MP3 file
-            should be saved.
-
-        voice_id:
-            ElevenLabs voice ID.
-
     Returns:
-        Path of the generated audio file.
+        Path of the generated MP3 file.
     """
 
     try:
@@ -80,9 +64,19 @@ def text_to_speech(
         # ---------------------------------
 
         if not text or not text.strip():
-
             raise ValueError(
                 "Text cannot be empty."
+            )
+
+
+        # ---------------------------------
+        # Create unique filename
+        # ---------------------------------
+
+        if output_file is None:
+
+            output_file = (
+                f"response_{uuid.uuid4().hex}.mp3"
             )
 
 
@@ -96,9 +90,11 @@ def text_to_speech(
 
             voice_id=voice_id,
 
-            model_id="eleven_multilingual_v2",
+            # Faster model for real-time use
+            model_id="eleven_flash_v2_5",
 
-            output_format="mp3_44100_128"
+            # Smaller audio file
+            output_format="mp3_22050_32"
         )
 
 
@@ -114,7 +110,6 @@ def text_to_speech(
             for chunk in audio:
 
                 if chunk:
-
                     file.write(chunk)
 
 

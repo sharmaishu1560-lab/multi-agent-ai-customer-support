@@ -1,136 +1,221 @@
-from services.llm_service import client
+
+import re
 
 
 def detect_intent(user_message):
+    """
+    Fast rule-based customer support intent detection.
+    Returns one intent without calling the LLM.
+    """
 
-    response = client.chat.completions.create(
-        model="qwen2.5-coder-1.5b-instruct",
-        temperature=0,
-        messages=[
-            {
-                "role": "system",
-                "content": """
-You are an intent classification AI.
+    message = user_message.lower().strip()
 
-Classify the user's message into EXACTLY ONE of these intents:
+    # Normalize punctuation and extra spaces
+    message = re.sub(r"\s+", " ", message)
 
-- order
-- refund
-- payment
-- technical_support
-- faq
-- escalation
-- email
-- general
+    # -----------------------------------
+    # 1. EMAIL
+    # -----------------------------------
 
+    email_phrases = [
+        "email",
+        "emails",
+        "gmail",
+        "inbox",
+        "latest mail",
+        "latest mails",
+        "latest email",
+        "latest emails",
+        "read my mail",
+        "read my email",
+        "summarize my mail",
+        "summarize my email",
+        "search my mail",
+        "search my email",
+    ]
 
-ORDER includes:
+    if any(phrase in message for phrase in email_phrases):
+        print("RULE-BASED INTENT: email")
+        return "email"
 
-- order status
-- track my order
-- where is my order
-- delivery status
-- shipping my order
-- when will my order arrive
+    # -----------------------------------
+    # 2. ESCALATION
+    # -----------------------------------
 
+    escalation_phrases = [
+        "human agent",
+        "human support",
+        "talk to a human",
+        "speak to a human",
+        "talk to an agent",
+        "speak to an agent",
+        "customer representative",
+        "customer support representative",
+        "connect me to",
+        "manager",
+        "supervisor",
+        "make a complaint",
+        "file a complaint",
+        "not satisfied",
+        "still unresolved",
+        "issue is unresolved",
+        "not resolved",
+        "this is not helping",
+    ]
 
-REFUND includes:
+    if any(phrase in message for phrase in escalation_phrases):
+        print("RULE-BASED INTENT: escalation")
+        return "escalation"
 
-- I want a refund
-- refund my order
-- get my money back
-- request a refund
-- refund status
+    # -----------------------------------
+    # 3. PAYMENT
+    # -----------------------------------
 
+    payment_phrases = [
+        "payment failed",
+        "payment issue",
+        "payment problem",
+        "payment not working",
+        "payment deducted",
+        "money deducted",
+        "amount deducted",
+        "charged but",
+        "charged, but",
+        "charged and",
+        "duplicate charge",
+        "double charged",
+        "incorrect charge",
+        "wrong amount charged",
+        "transaction failed",
+        "order was not confirmed",
+        "order is not confirmed",
+        "order wasn't confirmed",
+        "order not confirmed",
+        "paid but",
+        "payment successful but",
+        "payment processed but",
+        "billing problem",
+        "billing issue",
+        "payment",
+        "billing",
+        "transaction",
+        "charged",
+    ]
 
-PAYMENT includes:
+    if any(phrase in message for phrase in payment_phrases):
+        print("RULE-BASED INTENT: payment")
+        return "payment"
 
-- payment failed
-- payment issue
-- billing problem
-- payment not working
-- charged incorrectly
+    # -----------------------------------
+    # 4. REFUND
+    # -----------------------------------
 
+    refund_phrases = [
+        "i want a refund",
+        "i need a refund",
+        "request a refund",
+        "refund my order",
+        "get my money back",
+        "money back",
+        "initiate a refund",
+        "process my refund",
+        "check my refund",
+        "refund status",
+        "return my product for a refund",
+        "refund",
+        "return my order",
+        "return this product",
+    ]
 
-TECHNICAL SUPPORT includes:
+    if any(phrase in message for phrase in refund_phrases):
+        print("RULE-BASED INTENT: refund")
+        return "refund"
 
-- technical problem
-- application not working
-- website not working
-- login problem
-- technical issue
+    # -----------------------------------
+    # 5. ORDER
+    # -----------------------------------
 
+    order_phrases = [
+        "track my order",
+        "track order",
+        "order status",
+        "where is my order",
+        "where's my order",
+        "delivery status",
+        "when will my order arrive",
+        "when is my order arriving",
+        "shipping status",
+        "order tracking",
+        "order number",
+        "cancel my order",
+        "cancel order",
+        "late delivery",
+        "delayed order",
+    ]
 
-FAQ includes:
+    if any(phrase in message for phrase in order_phrases):
+        print("RULE-BASED INTENT: order")
+        return "order"
 
-- warranty
-- return policy
-- refund policy
-- shipping policy
-- business hours
-- contact information
-- company information
+    # -----------------------------------
+    # 6. TECHNICAL SUPPORT
+    # -----------------------------------
 
+    technical_phrases = [
+        "technical issue",
+        "technical problem",
+        "app is not working",
+        "application is not working",
+        "website is not working",
+        "site is not working",
+        "login issue",
+        "login problem",
+        "can't log in",
+        "cannot log in",
+        "unable to log in",
+        "password issue",
+        "error message",
+        "app crashed",
+        "website crashed",
+        "screen is frozen",
+        "not loading",
+        "bug",
+        "software issue",
+    ]
 
-ESCALATION includes:
+    if any(phrase in message for phrase in technical_phrases):
+        print("RULE-BASED INTENT: technical_support")
+        return "technical_support"
 
-- talk to a human
-- speak to an agent
-- customer representative
-- manager
-- complaint
-- not satisfied
-- unresolved issue
+    # -----------------------------------
+    # 7. FAQ
+    # -----------------------------------
 
+    faq_phrases = [
+        "warranty",
+        "return policy",
+        "refund policy",
+        "shipping policy",
+        "delivery policy",
+        "business hours",
+        "working hours",
+        "company information",
+        "about your company",
+        "contact information",
+        "contact details",
+        "how do i return",
+        "what is your return",
+        "what is the refund",
+        "what is your refund",
+    ]
 
-EMAIL includes:
+    if any(phrase in message for phrase in faq_phrases):
+        print("RULE-BASED INTENT: faq")
+        return "faq"
 
-- show my emails
-- show my latest emails
-- check my emails
-- read my emails
-- what emails did I receive
-- latest email
-- recent email
-- summarize my email
-- summarize my latest email
-- find an email
-- search my emails
-- do I have an email from someone
-- email from a person
-- emails about a topic
-- check my Gmail
-- read my Gmail
-- Gmail messages
+    # -----------------------------------
+    # 8. GENERAL
+    # -----------------------------------
 
-
-IMPORTANT:
-
-Return ONLY one word.
-
-Valid outputs are:
-
-order
-refund
-payment
-technical_support
-faq
-escalation
-email
-general
-
-Do not return anything else.
-"""
-            },
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ]
-    )
-
-    intent = response.choices[0].message.content.strip().lower()
-
-    print("RAW MODEL OUTPUT:", intent)
-
-    return intent
+    print("RULE-BASED INTENT: general")
+    return "general"
